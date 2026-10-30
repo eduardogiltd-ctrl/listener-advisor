@@ -58,7 +58,11 @@
     });
     return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><rect width="${w}" height="${h}" fill="#26302F"/><g fill="none" stroke="${c}">${rings}</g><circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${Math.max(2.5, 4 * sc).toFixed(1)}" fill="${c}"/></svg>`;
   }
-  const thumb = (k, seed) => `<div class="art thumb">${art(k, seed, 72, 72, 0.3)}</div>`;
+  // Imagen real si la hay (enlazada desde la fuente, sin copiar), anillos si no.
+  const pic = (x, k, seed, w, h, scale, cls = '') => x && x.img
+    ? `<div class="art photo ${cls}"><img src="${esc(x.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('photo');this.outerHTML=${JSON.stringify(art(k, seed, w, h, scale)).replace(/"/g, '&quot;')}"></div>`
+    : `<div class="art ${cls}">${art(k, seed, w, h, scale)}</div>`;
+  const thumb = (k, seed, x) => pic(x, k, seed, 72, 72, 0.3, 'thumb');
 
   const ICON = {
     heart: on => `<svg viewBox="0 0 24 24" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8"><path d="M12 20.5s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7.5 2.5c0 5.4-7.5 10-7.5 10Z"/></svg>`,
@@ -130,8 +134,8 @@
     const p = placeById[e.place];
     const out = soldOut(e);
     return `<article class="row" data-go="evento/${e.id}">
-      <div class="time">${opts.date ? shortDate(e.d) + '<br>' : ''}${e.t}</div>${thumb(e.mundo, e.id)}
-      <div class="body">${mundoMeta(e, e.formato)}<h3>${esc(e.title)}</h3><div class="venue">${opts.hidePlace ? esc(e.lineup.join(', ')) : esc(p.name) + ' · ' + esc(p.barrio)}</div>${howTags(e)}</div>
+      <div class="time">${opts.date ? shortDate(e.d) + '<br>' : ''}${e.t}</div>${thumb(e.mundo, e.id, e)}
+      <div class="body">${mundoMeta(e, e.formato)}<h3>${esc(e.title)}</h3><div class="venue">${opts.hidePlace ? esc(e.lineup.join(', ')) : [p.name, p.barrio].filter(Boolean).map(esc).join(' · ')}</div>${howTags(e)}</div>
       <div class="right"><div class="price${out ? ' out' : ''}">${out ? 'Agotado' : priceLabel(e)}</div>${saveBtn(e.id, 'sm')}</div>
     </article>`;
   }
@@ -147,12 +151,12 @@
   function fcard(e) {
     const p = placeById[e.place];
     const badge = soldOut(e) ? '<span class="badge out">Agotado · lista de espera</span>' : fewLeft(e) ? '<span class="badge warn">Quedan pocas</span>' : '';
-    return `<div class="fcard" data-go="evento/${e.id}"><div class="art">${art(e.mundo, e.id, 400, 240, 1)}${badge}${saveBtn(e.id)}</div>${mundoMeta(e, e.formato)}<h3>${esc(e.title)}</h3><div class="sub">${dayLabel(e.d)} · ${e.t} · ${esc(p.name)} · ${priceLabel(e)}</div></div>`;
+    return `<div class="fcard" data-go="evento/${e.id}">${pic(e, e.mundo, e.id, 400, 240, 1).replace('</div>', badge + saveBtn(e.id) + '</div>')}${mundoMeta(e, e.formato)}<h3>${esc(e.title)}</h3><div class="sub">${dayLabel(e.d)} · ${e.t} · ${esc(p.name)} · ${priceLabel(e)}</div></div>`;
   }
   function vcard(p) {
     const open = isOpen(p); const next = EVENTS.filter(e => e.place === p.id).sort((a, b) => a.d - b.d)[0];
     const st = open === null ? (next ? `${dayLabel(next.d)} · ${next.t}` : 'Solo eventos') : open ? `Abierto · hasta ${p.hours.label.split('–').pop()}` : `Cerrado · ${p.hours.label}`;
-    return `<div class="vcard" data-go="lugar/${p.id}"><div class="art">${art(p.mundo, p.id, 400, 240, 1)}${saveBtn('p:' + p.id)}</div><div class="meta"><i class="dot c-${p.mundo}"></i>${esc(p.type)}</div><h3>${esc(p.name)}</h3><div class="mute" style="font-size:14px">${esc(p.barrio)}</div><div class="sys">${esc(p.system)}</div><div class="status${open ? ' yes' : ''}"><i></i>${st}</div></div>`;
+    return `<div class="vcard" data-go="lugar/${p.id}">${pic(p, p.mundo, p.id, 400, 240, 1).replace('</div>', saveBtn('p:' + p.id) + '</div>')}<div class="meta"><i class="dot c-${p.mundo}"></i>${esc(p.type)}</div><h3>${esc(p.name)}</h3><div class="mute" style="font-size:14px">${esc(p.barrio)}</div><div class="sys">${esc(p.system)}</div><div class="status${open ? ' yes' : ''}"><i></i>${st}</div></div>`;
   }
   const mundoItem = (k, title, sub, href) => `<div class="mundo-item c-${k}" data-go="${href}"><div class="bar"></div><div><b>${esc(title)}</b><small>${esc(sub)}</small></div></div>`;
   const railMundos = () => `<div class="block"><div class="meta">Los cuatro mundos</div>${ORDER.map(k => mundoItem(k, MUNDOS[k].name, MUNDOS[k].short, 'mundo/' + k)).join('')}</div>`;
@@ -198,7 +202,7 @@
     const p = placeById[id]; if (!p) return notFound();
     const open = isOpen(p); const evs = EVENTS.filter(e => e.place === id).sort((a, b) => a.d - b.d);
     const fol = S.following.has('p:' + id);
-    return `<div class="art hero-art">${art(p.mundo, p.id + 'hero', 1440, 420, 1.4)}</div>
+    return `${pic(p, p.mundo, p.id + 'hero', 1440, 420, 1.4, 'hero-art')}
     <div class="detail">
       <div class="main">
         <div class="sec" style="gap:14px">${mundoMeta(p, p.type)}<h1>${esc(p.name)}</h1>
@@ -229,7 +233,7 @@
       : `<div class="kv"><small>Precio</small><span>Entrada libre${e.aforo ? ` · ${e.aforo} plazas` : ''}</span></div><button class="btn primary block" data-rsvp="${id}">${S.orders.some(o => o.ev === id) ? 'Vas a ir ✓' : 'Voy a ir'}</button><span class="fee">No hace falta entrada. Decir que vas ayuda a la sala a calcular el aforo.</span>`;
     const good = [['Duración', e.dur || 'Sin confirmar'], ['Puertas', `${e.t} · se recomienda llegar 10 min antes`], ['Edad', e.age || 'Consultar con la sala'], ['Entradas', e.tickets ? 'Nominativas · reembolso hasta 48 h antes' : e.url ? 'En la web del organizador' : 'No hace falta entrada'], e.genres.length ? ['Géneros', e.genres.join(' · ')] : ['Accesibilidad', 'Consultar con la sala'], ['Móvil', 'En silencio durante la escucha']];
     const more = cityEvents().filter(x => x.mundo === e.mundo && x.id !== id).slice(0, 3);
-    return `<div class="art hero-art">${art(e.mundo, e.id + 'hero', 1440, 420, 1.4)}</div>
+    return `${pic(e, e.mundo, e.id + 'hero', 1440, 420, 1.4, 'hero-art')}
     <div class="detail">
       <div class="main">
         <div class="sec" style="gap:14px">${mundoMeta(e, e.formato)}<h1>${esc(e.title)}</h1>
