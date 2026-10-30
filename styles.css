@@ -269,8 +269,9 @@ textarea.input{min-height:120px;resize:vertical;line-height:1.5}
 .preview .row{padding:18px;border:0;cursor:default}
 
 /* yo */
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
-.tabs button{padding:12px 16px;color:var(--mute);border-bottom:2px solid transparent;margin-bottom:-1px;font-size:15px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{padding:12px 16px;color:var(--mute);border-bottom:2px solid transparent;margin-bottom:-1px;font-size:15px;white-space:nowrap;flex:none}
 .tabs button.on{color:var(--ink);border-color:var(--ink)}
 
 /* toast + modal */
@@ -297,7 +298,10 @@ textarea.input{min-height:120px;resize:vertical;line-height:1.5}
 }
 @media (max-width:860px){
   :root{--pad:20px}
+  html,body{overflow-x:hidden}
   body{padding-bottom:84px}
+  .vgrid{gap:12px}
+  .vcard,.main .vcard{width:calc(50% - 6px)}
   .header{height:60px;gap:12px}
   .brand b{font-size:16px}
   .header .nav,.header .btn.submit{display:none}
