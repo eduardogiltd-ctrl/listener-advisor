@@ -62,7 +62,7 @@
   const pic = (x, k, seed, w, h, scale, cls = '') => x && x.img
     ? `<div class="art photo ${cls}"><img src="${esc(x.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('photo');this.outerHTML=${JSON.stringify(art(k, seed, w, h, scale)).replace(/"/g, '&quot;')}"></div>`
     : `<div class="art ${cls}">${art(k, seed, w, h, scale)}</div>`;
-  const thumb = (k, seed, x) => pic(x, k, seed, 72, 72, 0.3, 'thumb');
+  const thumb = (k, seed, x) => pic(x, k, seed, 96, 96, 0.36, 'thumb');
 
   const ICON = {
     heart: on => `<svg viewBox="0 0 24 24" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8"><path d="M12 20.5s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7.5 2.5c0 5.4-7.5 10-7.5 10Z"/></svg>`,
@@ -107,7 +107,7 @@
     return false;
   }
   const cityEvents = () => EVENTS.filter(e => placeById[e.place].city === S.city).sort((a, b) => a.d - b.d || a.t.localeCompare(b.t));
-  const cityPlaces = () => PLACES.filter(p => p.city === S.city);
+  const cityPlaces = () => PLACES.filter(p => p.city === S.city && !p.tba);
   function filteredEvents(extra = () => true) {
     const [a, b] = whenRange();
     return cityEvents().filter(e => e.d >= a && e.d <= b && (!S.mundos.size || S.mundos.has(e.mundo)) && (!S.postura || e.postura === S.postura) && extra(e));
@@ -135,7 +135,7 @@
     const out = soldOut(e);
     return `<article class="row" data-go="evento/${e.id}">
       <div class="time">${opts.date ? shortDate(e.d) + '<br>' : ''}${e.t}</div>${thumb(e.mundo, e.id, e)}
-      <div class="body">${mundoMeta(e, e.formato)}<h3>${esc(e.title)}</h3><div class="venue">${opts.hidePlace ? esc(e.lineup.join(', ')) : [p.name, p.barrio].filter(Boolean).map(esc).join(' · ')}</div>${howTags(e)}</div>
+      <div class="body">${mundoMeta(e, e.formato)}<h3>${esc(e.title)}</h3><div class="venue">${opts.hidePlace ? esc(e.lineup.join(', ')) : [p.name, p.barrio].filter(Boolean).map(esc).join(' · ')}</div>${!opts.hidePlace && e.lineup.length ? `<div class="lineup-line">${esc(e.lineup.join(', '))}</div>` : ''}${howTags(e)}</div>
       <div class="right"><div class="price${out ? ' out' : ''}">${out ? 'Agotado' : priceLabel(e)}</div>${saveBtn(e.id, 'sm')}</div>
     </article>`;
   }
@@ -151,12 +151,12 @@
   function fcard(e) {
     const p = placeById[e.place];
     const badge = soldOut(e) ? '<span class="badge out">Agotado · lista de espera</span>' : fewLeft(e) ? '<span class="badge warn">Quedan pocas</span>' : '';
-    return `<div class="fcard" data-go="evento/${e.id}">${pic(e, e.mundo, e.id, 400, 240, 1).replace('</div>', badge + saveBtn(e.id) + '</div>')}${mundoMeta(e, e.formato)}<h3>${esc(e.title)}</h3><div class="sub">${dayLabel(e.d)} · ${e.t} · ${esc(p.name)} · ${priceLabel(e)}</div></div>`;
+    return `<div class="fcard c-${e.mundo}" data-go="evento/${e.id}">${pic(e, e.mundo, e.id, 400, 400, 1).replace('</div>', badge + saveBtn(e.id) + '</div>')}<h3>${esc(e.title)}</h3><div class="when">${dayLabel(e.d)}${e.d > 1 ? ' ' + shortDate(e.d).split(' ').slice(1).join(' ') : ''} · ${e.t}</div><div class="sub"><b>${esc(p.name)}</b>${priceLabel(e)}${e.formato ? ' · ' + esc(e.formato) : ''}</div></div>`;
   }
   function vcard(p) {
     const open = isOpen(p); const next = EVENTS.filter(e => e.place === p.id).sort((a, b) => a.d - b.d)[0];
     const st = open === null ? (next ? `${dayLabel(next.d)} · ${next.t}` : 'Solo eventos') : open ? `Abierto · hasta ${p.hours.label.split('–').pop()}` : `Cerrado · ${p.hours.label}`;
-    return `<div class="vcard" data-go="lugar/${p.id}">${pic(p, p.mundo, p.id, 400, 240, 1).replace('</div>', saveBtn('p:' + p.id) + '</div>')}<div class="meta"><i class="dot c-${p.mundo}"></i>${esc(p.type)}</div><h3>${esc(p.name)}</h3><div class="mute" style="font-size:14px">${esc(p.barrio)}</div><div class="sys">${esc(p.system)}</div><div class="status${open ? ' yes' : ''}"><i></i>${st}</div></div>`;
+    return `<div class="vcard" data-go="lugar/${p.id}">${pic(p, p.mundo, p.id, 400, 400, 1).replace('</div>', saveBtn('p:' + p.id) + '</div>')}<div class="meta"><i class="dot c-${p.mundo}"></i>${esc(p.type)}</div><h3>${esc(p.name)}</h3><div class="mute" style="font-size:14px">${esc(p.barrio)}</div><div class="sys">${esc(p.system)}</div><div class="status${open ? ' yes' : ''}"><i></i>${st}</div></div>`;
   }
   const mundoItem = (k, title, sub, href) => `<div class="mundo-item c-${k}" data-go="${href}"><div class="bar"></div><div><b>${esc(title)}</b><small>${esc(sub)}</small></div></div>`;
   const railMundos = () => `<div class="block"><div class="meta">Los cuatro mundos</div>${ORDER.map(k => mundoItem(k, MUNDOS[k].name, MUNDOS[k].short, 'mundo/' + k)).join('')}</div>`;
@@ -166,13 +166,15 @@
   /* ---------- vistas ---------- */
   function vHome() {
     const evs = filteredEvents();
-    const feat = cityEvents().filter(e => e.featured && e.d <= 9).slice(0, 4);
+    const pool = cityEvents().filter(e => e.d <= 14 && (!S.mundos.size || S.mundos.has(e.mundo)) && (!S.postura || e.postura === S.postura));
+    const feat = [...pool.filter(e => e.featured), ...pool.filter(e => !e.featured)].slice(0, 8);
+    const tiles = `<div class="tiles">${ORDER.map(k => `<div class="tile c-${k}${S.mundos.has(k) ? ' on' : ''}" data-mundo="${k}"><i></i>${MUNDOS[k].name}</div>`).join('')}</div>`;
     const intro = S.mundos.size === 1 ? (() => { const m = MUNDOS[[...S.mundos][0]]; return `<p style="font-size:15px;max-width:640px;color:var(--mute)">${m.desc} <a class="link" href="#/mundo/${[...S.mundos][0]}">Ir a la sección</a></p>`; })() : '';
-    return `${filtersBar()}
+    return `${filtersBar({ mundo: false })}${tiles}
     <div class="hero"><h1>${CITIES[S.city].name}</h1><p>${(() => { const n7 = cityEvents().filter(e => e.d <= 6).length, nAll = cityEvents().length, bars = cityPlaces().filter(p => p.hours).length; return `${n7 ? `Esta semana se escucha en ${new Set(cityEvents().filter(e => e.d <= 6).map(e => e.place)).size} sitios: ${n7} ${n7 === 1 ? 'evento' : 'eventos'}.` : 'Esta semana no hay nada publicado todavía.'} ${nAll} en el próximo mes, ${cityPlaces().length} lugares${bars ? `, ${bars} bares de escucha` : ''}.`; })()}</p>${intro}</div>
-    ${S.mundos.size || S.postura || S.when !== 'semana' ? '' : `<div class="section" style="padding-top:40px"><div class="h-row"><h2>Destacados</h2><a class="link" href="#/mundos">Explorar por mundo</a></div><div class="feat">${feat.map(fcard).join('')}</div></div>`}
+    ${S.when !== 'semana' || !feat.length ? '' : `<div class="section" style="padding-top:36px"><div class="h-row"><h2>Próximas dos semanas</h2><a class="link" href="#/mundos">Explorar por mundo</a></div><div class="feat">${feat.map(fcard).join('')}</div></div>`}
     <div class="cols" style="padding-top:48px">
-      <div class="main"><h2>Por día</h2>${dayList(evs)}${S.when === 'semana' && evs.length ? `<div style="padding:28px 0"><button class="btn ghost" data-when="todo">Ver el resto del mes ↓</button></div>` : ''}</div>
+      <div class="main"><h2>Toda la agenda</h2>${dayList(evs)}${S.when === 'semana' && evs.length ? `<div style="padding:28px 0"><button class="btn ghost" data-when="todo">Ver el resto del mes ↓</button></div>` : ''}</div>
       <div class="rail">${railMundos()}${railOpen()}${railNews()}</div>
     </div>`;
   }
@@ -202,11 +204,11 @@
     const p = placeById[id]; if (!p) return notFound();
     const open = isOpen(p); const evs = EVENTS.filter(e => e.place === id).sort((a, b) => a.d - b.d);
     const fol = S.following.has('p:' + id);
-    return `${pic(p, p.mundo, p.id + 'hero', 1440, 420, 1.4, 'hero-art')}
+    return `<div class="evwrap"><div class="flyer">${pic(p, p.mundo, p.id + 'hero', 400, 500, 1.1)}</div>
     <div class="detail">
       <div class="main">
         <div class="sec" style="gap:14px">${mundoMeta(p, p.type)}<h1>${esc(p.name)}</h1>
-          <div class="when">${esc(p.barrio)}, ${CITIES[p.city].name} · ${p.hours ? esc(p.hours.label) + ` · <span class="status${open ? ' yes' : ''}"><i></i>${open ? 'Abierto ahora' : 'Cerrado ahora'}</span>` : 'Abre solo para eventos'}</div>
+          <div class="when">${[p.barrio, CITIES[p.city].name].filter(Boolean).map(esc).join(', ')} · ${p.hours ? esc(p.hours.label) + ` · <span class="status${open ? ' yes' : ''}"><i></i>${open ? 'Abierto ahora' : 'Cerrado ahora'}</span>` : 'Abre solo para eventos'}</div>
           <div class="actions"><button class="btn${fol ? ' on' : ''}" data-follow="p:${id}">${fol ? 'Siguiendo' : 'Seguir'} · ${(p.followers + (fol ? 1 : 0)).toLocaleString('es')}</button>${saveBtn('p:' + id)}<button class="iconbtn" data-share="${id}">${ICON.share}</button></div>
         </div>
         <div class="sec"><div class="meta">Sistema de sonido</div>${p.sys.length ? `<div class="kvgrid">${p.sys.map(([k, v]) => `<div class="kv"><small>${esc(k)}</small><span>${esc(v)}</span></div>`).join('')}</div>` : `<p class="p">Sin confirmar todavía. ${p.url ? `<a class="link" href="${esc(p.url)}" target="_blank" rel="noopener">Ver el lugar en la fuente ↗</a>. ` : ''}Si es tu local, reclama la ficha y cuéntanos qué suena aquí.</p>`}</div>
@@ -218,7 +220,7 @@
         <div class="art" style="height:220px;width:100%;border-radius:8px" id="minimap" data-ll="${p.ll.join(',')}" data-c="${MUNDOS[p.mundo].color}"></div>
         <div class="box"><div class="kv"><small>Dirección</small><span>${esc(p.addr)}</span></div><div class="kv"><small>Horario</small><span>${p.hours ? esc(p.hours.label) : 'Solo con evento'}</span></div>${p.org ? `<div class="kv"><small>Programa</small><span data-go="org/${p.org}" class="link" style="font-size:15px">${esc(ORGS[p.org].name)}</span></div>` : ''}<button class="btn" data-toast="Abriría la app de mapas">Cómo llegar</button><span class="faint" style="font-size:12px">¿Es tu local? <a class="link" href="#/enviar">Reclama la ficha</a>.</span></div>
       </div>
-    </div>`;
+    </div></div>`;
   }
 
   function vEvento(id) {
@@ -233,26 +235,26 @@
       : `<div class="kv"><small>Precio</small><span>Entrada libre${e.aforo ? ` · ${e.aforo} plazas` : ''}</span></div><button class="btn primary block" data-rsvp="${id}">${S.orders.some(o => o.ev === id) ? 'Vas a ir ✓' : 'Voy a ir'}</button><span class="fee">No hace falta entrada. Decir que vas ayuda a la sala a calcular el aforo.</span>`;
     const good = [['Duración', e.dur || 'Sin confirmar'], ['Puertas', `${e.t} · se recomienda llegar 10 min antes`], ['Edad', e.age || 'Consultar con la sala'], ['Entradas', e.tickets ? 'Nominativas · reembolso hasta 48 h antes' : e.url ? 'En la web del organizador' : 'No hace falta entrada'], e.genres.length ? ['Géneros', e.genres.join(' · ')] : ['Accesibilidad', 'Consultar con la sala'], ['Móvil', 'En silencio durante la escucha']];
     const more = cityEvents().filter(x => x.mundo === e.mundo && x.id !== id).slice(0, 3);
-    return `${pic(e, e.mundo, e.id + 'hero', 1440, 420, 1.4, 'hero-art')}
+    return `<div class="evwrap"><div class="flyer">${pic(e, e.mundo, e.id + 'hero', 400, 500, 1.1)}</div>
     <div class="detail">
       <div class="main">
         <div class="sec" style="gap:14px">${mundoMeta(e, e.formato)}<h1>${esc(e.title)}</h1>
-          <div class="when">${cap(fmtLong.format(dateOf(e.d)))} · ${e.t}${e.dur && /h|noche/.test(e.dur) ? ' → ' + esc(e.dur.replace('Toda la noche · ', '')) : ''}<br><u data-go="lugar/${p.id}">${esc(p.name)}</u> · ${esc(p.barrio)}, ${CITIES[p.city].name}</div>
+          <div class="when">${cap(fmtLong.format(dateOf(e.d)))} · ${e.t}${e.dur && /h|noche/.test(e.dur) ? ' → ' + esc(e.dur.replace('Toda la noche · ', '')) : ''}<br><u data-go="lugar/${p.id}">${esc(p.name)}</u> · ${[p.barrio, CITIES[p.city].name].filter(Boolean).map(esc).join(', ')}</div>
           <div class="actions">${saveBtn(id)}<button class="iconbtn" data-share="${id}">${ICON.share}</button><button class="btn sm" data-toast="Añadido al calendario (simulado)">Añadir al calendario</button></div>
         </div>
-        <div class="sec"><div class="meta">Line-up</div><div class="lineup">${e.lineup.map(a => `<div><div class="avatar">${esc(a.split(' ').map(w => w[0]).join('').slice(0, 2))}</div><span class="grow">${esc(a)}</span>${/abierto|equipo/i.test(a) ? '' : `<button class="btn sm${S.following.has('a:' + a) ? ' on' : ''}" data-follow="a:${esc(a)}">${S.following.has('a:' + a) ? 'Siguiendo' : 'Seguir'}</button>`}</div>`).join('')}</div></div>
+        ${e.lineup.length ? `<div class="sec"><div class="meta">Line-up</div><div class="lineup">${e.lineup.map(a => `<div><div class="avatar">${esc(a.split(' ').map(w => w[0]).join('').slice(0, 2))}</div><span class="grow">${esc(a)}</span>${/abierto|equipo/i.test(a) ? '' : `<button class="btn sm${S.following.has('a:' + a) ? ' on' : ''}" data-follow="a:${esc(a)}">${S.following.has('a:' + a) ? 'Siguiendo' : 'Seguir'}</button>`}</div>`).join('')}</div></div>` : ''}
         <div class="sec"><div class="meta">Cómo se escucha</div><div class="kvgrid"><div class="kv"><small>Postura</small><span>${POSTURA[e.postura]}</span></div><div class="kv"><small>Conversación</small><span>${CHARLA[e.charla]}</span></div><div class="kv"><small>Duración</small><span>${esc(e.dur)}</span></div><div class="kv"><small>Aforo</small><span>${e.aforo ? e.aforo + ' plazas' : 'Sin límite'}</span></div>${e.trae ? `<div class="kv wide"><small>Qué traer</small><span>${esc(e.trae)}</span></div>` : ''}</div></div>
         <div class="sec"><div class="meta">Qué vas a vivir</div><p class="p">${esc(e.desc)}</p></div>
         <div class="sec"><div class="meta">Bueno saber</div><div class="good">${good.map(([k, v]) => `<div><b>${k}</b><span>${esc(v)}</span></div>`).join('')}</div></div>
-        <div class="sec"><div class="meta">El lugar</div><div class="place-card" data-go="lugar/${p.id}">${thumb(p.mundo, p.id)}<div class="body">${mundoMeta(p, p.type)}<h3>${esc(p.name)}</h3><div class="venue">${esc(p.barrio)} · ${esc(p.system)}</div></div><span class="link">Ver lugar</span></div></div>
+        <div class="sec"><div class="meta">El lugar</div><div class="place-card" data-go="lugar/${p.id}">${thumb(p.mundo, p.id)}<div class="body">${mundoMeta(p, p.type)}<h3>${esc(p.name)}</h3><div class="venue">${[p.barrio, p.system].filter(Boolean).map(esc).join(' · ')}</div></div><span class="link">Ver lugar</span></div></div>
         ${org ? `<div class="sec"><div class="meta">Organiza</div><div class="org"><div class="avatar">${esc(org.name[0])}</div><div class="body"><b data-go="org/${org.id}" style="cursor:pointer">${esc(org.name)}</b><small>${esc(org.desc)} · ${org.events} eventos</small></div><button class="btn sm${S.following.has('o:' + org.id) ? ' on' : ''}" data-follow="o:${org.id}">${S.following.has('o:' + org.id) ? 'Siguiendo' : 'Seguir'}</button></div></div>` : ''}
         <div class="sec"><span class="link faint" style="font-size:12px" data-toast="Gracias. Lo revisamos.">Reportar este evento</span></div>
       </div>
       <div class="rail">
-        <div class="box"><div class="kv"><small>Cuándo</small><span>${shortDate(e.d)} · ${e.t}</span></div><div class="kv"><small>Dónde</small><span>${esc(p.name)}, ${esc(p.barrio)}</span></div>${cta}</div>
+        <div class="box"><div class="kv"><small>Cuándo</small><span>${shortDate(e.d)} · ${e.t}</span></div><div class="kv"><small>Dónde</small><span>${[p.name, p.barrio].filter(Boolean).map(esc).join(', ')}</span></div>${cta}</div>
         ${more.length ? `<div class="block"><div class="meta">Más ${MUNDOS[e.mundo].name.toLowerCase()} en ${CITIES[S.city].name}</div>${more.map(x => mundoItem(x.mundo, x.title, `${dayLabel(x.d)} · ${x.t} · ${placeById[x.place].name}`, 'evento/' + x.id)).join('')}</div>` : ''}
       </div>
-    </div>
+    </div></div>
     <div class="sticky-cta">${out ? `<button class="btn primary" data-wait="${id}">${waiting ? 'En la lista ✓' : 'Lista de espera'}</button>` : e.url ? `<button class="btn" data-save="${id}">${S.saved.has(id) ? 'Guardado' : 'Guardar'}</button><a class="btn primary" href="${esc(e.url)}" target="_blank" rel="noopener">${e.ticketed ? 'Entradas' : 'Info'} ↗</a>` : e.tickets ? `<button class="btn" data-save="${id}">${S.saved.has(id) ? 'Guardado' : 'Guardar'}</button><button class="btn primary" data-go="compra/${id}">Comprar · ${priceLabel(e)}</button>` : `<button class="btn" data-save="${id}">${S.saved.has(id) ? 'Guardado' : 'Guardar'}</button><button class="btn primary" data-rsvp="${id}">${S.orders.some(o => o.ev === id) ? 'Vas a ir ✓' : 'Voy a ir'}</button>`}</div>`;
   }
 
